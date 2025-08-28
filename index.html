@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastro do Mouse Degradê Tricolor</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mouseTrailCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('mouseTrailCanvas');
+        const ctx = canvas.getContext('2d');
+        let trail = [];
+        const maxRadius = 5;
+        const fadeSpeed = 0.02;
+        const initialOpacity = 1;
+
+        // Cores para o degradê (em formato [R, G, B])
+        const colorStart = [255, 0, 51];      // rgba(255, 0, 51, 0.7)
+        const colorMiddle = [15, 240, 252];  // rgba(15, 240, 252, 0.7)
+        const colorEnd = [188, 19, 254];     // rgba(188, 19, 254, 0.7)
+        const colorAlpha = 0.7; // O valor alpha fixo das cores fornecidas
+
+        // Ajusta o tamanho do canvas para o tamanho da janela
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        // Adiciona um ponto ao rastro
+        document.addEventListener('mousemove', (event) => {
+            trail.push({
+                x: event.clientX,
+                y: event.clientY,
+                opacity: initialOpacity
+            });
+        });
+
+        // Interpolação linear entre dois valores
+        function lerp(start, end, t) {
+            return start * (1 - t) + end * t;
+        }
+
+        // Desenha o rastro
+        function drawTrail() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const nextTrail = [];
+
+            for (let i = 0; i < trail.length; i++) {
+                const point = trail[i];
+
+                point.opacity -= fadeSpeed;
+
+                if (point.opacity > 0) {
+                    nextTrail.push(point);
+
+                    // Calcula o fator de "idade" do ponto (t vai de 0 a 1 conforme a opacidade cai de 1 a 0)
+                    const ageFactor = 1 - point.opacity; // 0 = novo, 1 = velho
+
+                    let r, g, b;
+                    let segmentFactor;
+
+                    // Interpolação em 3 cores: Start -> Middle -> End
+                    if (ageFactor <= 0.5) {
+                        // Primeira metade da vida do ponto: Interpola Start para Middle
+                        segmentFactor = ageFactor / 0.5; // Normaliza ageFactor de 0-0.5 para segmentFactor de 0-1
+                        r = lerp(colorStart[0], colorMiddle[0], segmentFactor);
+                        g = lerp(colorStart[1], colorMiddle[1], segmentFactor);
+                        b = lerp(colorStart[2], colorMiddle[2], segmentFactor);
+                    } else {
+                        // Segunda metade da vida do ponto: Interpola Middle para End
+                        segmentFactor = (ageFactor - 0.5) / 0.5; // Normaliza ageFactor de 0.5-1 para segmentFactor de 0-1
+                        r = lerp(colorMiddle[0], colorEnd[0], segmentFactor);
+                        g = lerp(colorMiddle[1], colorEnd[1], segmentFactor);
+                        b = lerp(colorMiddle[2], colorEnd[2], segmentFactor);
+                    }
+
+                    // A opacidade final é a opacidade atual do ponto multiplicada pelo alpha original
+                    const finalAlpha = point.opacity * colorAlpha;
+
+                    // Calcula o raio baseado na opacidade
+                    const radius = maxRadius * (point.opacity > 0 ? point.opacity : 0);
+
+                    ctx.fillStyle = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${finalAlpha})`;
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            trail = nextTrail;
+        }
+
+        // Loop de animação
+        function animate() {
+            drawTrail();
+            requestAnimationFrame(animate);
+        }
+
+        // Inicializa
+        resizeCanvas();
+        animate();
+
+        // Redimensiona o canvas
+        window.addEventListener('resize', resizeCanvas);
+
+    </script>
+</body>
+</html>
